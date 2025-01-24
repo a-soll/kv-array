@@ -53,9 +53,9 @@ public:
         pointer _ptr;
     };
     // Iterator end
-
     array() {}
     ~array() {}
+
     inline Iterator begin() {
         return Iterator(&this->_arr[0]);
     }
@@ -95,7 +95,7 @@ public:
      *
      * frees the item at given index
      */
-    inline void free(size_t at) {
+    inline void free_at(size_t at) {
         delete this->_arr[at];
         this->_arr[at] = nullptr;
     }
@@ -118,6 +118,27 @@ public:
         this->_trustworthy_length = false;
     }
     /**
+     * `UNSAFE:` probably breaks `.length()`, so don't rely on it.
+     *
+     * index wraps to beginning to add new items after hitting capacity.
+     * deallocates currently occupied memory. need to call zero_initialize array to make
+     * this work.
+     * `RETURN:` index of the item inserted. ignorable.
+     */
+    size_t write_back(const T &item) {
+        this->_trustworthy_length = false;
+        if (this->_arr[this->_ind] != nullptr) {
+            this->free_at(this->_ind);
+        }
+        this->_arr[this->_ind] = item;
+        this->_ind++;
+        if (this->_ind == size) {
+            this->_ind = 0;
+            return size - 1;
+        }
+        return this->_ind - 1;
+    }
+    /**
      * `UNSAFE:` deallocates memory and assigned it to `nullptr`
      *
      * same as `clear()`, but deallocates objects.
@@ -125,7 +146,7 @@ public:
     inline void free() {
         size_t end = this->_trustworthy_length ? this->_ind : size;
         for (size_t i = 0; i < end; i++) {
-            this->free(i);
+            this->free_at(i);
         }
         this->_ind = 0;
     }
@@ -160,6 +181,17 @@ public:
     inline const T &operator[](size_t ind) const {
         return this->_arr[ind];
     }
+    array &operator=(const array &rhs) {
+        if (this == &rhs) {
+            return *this;
+        }
+        for (size_t i = 0; i < rhs.capacity(); i++) {
+            this->_arr[i] = rhs[i];
+        }
+        this->_ind                = rhs._ind;
+        this->_trustworthy_length = rhs._trustworthy_length;
+        return *this;
+    }
 
 private:
     size_t _ind              = 0;
@@ -168,5 +200,4 @@ private:
 };
 
 } // namespace kv
-
 #endif /* KV_ARRAY_H */
